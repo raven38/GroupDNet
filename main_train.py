@@ -77,6 +77,7 @@ def train(save_path, checkpoint, data_root):
     encoder.to(device)
     decoder.to(device)
     discriminator.to(device)
+    vgg.to(device)
     
     for epoch in range(1):
         e_g_loss = []
@@ -91,7 +92,8 @@ def train(save_path, checkpoint, data_root):
             sem = sem.long()
             s = split_class(x, sem, n_classes)
             sem_target = sem.clone()
-            sem = torch.zeros(x.size()[0], n_classes, sem_target.size()[2], sem_target.size()[3], device=device)
+            del sem
+            sem = torch.zeros(x.size()[0], n_classes, sem_target.size()[2], sem_target.size()[3], device=x.device)
             sem.scatter_(1, sem_target, 1)
             s = s.detach()
             mu, sigma = encoder(s)
