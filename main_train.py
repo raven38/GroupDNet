@@ -45,7 +45,7 @@ def train(save_path, checkpoint, data_root):
     target_transform = transforms.Compose([transforms.Resize((128, 128)),
                                            ToTensor()])
     dataset = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
-    data_loader = torch.utils.data.DataLoader(dataset)
+    data_loader = torch.utils.data.DataLoader(dataset, num_workers=1)
 
     os.makedirs(save_path, exist_ok=True)
 
