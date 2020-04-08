@@ -96,6 +96,7 @@ def train(save_path, checkpoint, data_root):
             sem = torch.zeros(x.size()[0], n_classes, sem_target.size()[2], sem_target.size()[3], device=x.device)
             sem.scatter_(1, sem_target, 1)
             s = s.detach()
+            s.to(device)
             mu, sigma = encoder(s)
             z = mu + torch.exp(0.5 * sigma) * torch.rand(mu.size())
             gen = decoder(z, sem)
