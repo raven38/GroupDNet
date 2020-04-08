@@ -73,7 +73,11 @@ def train(save_path, checkpoint, data_root):
         # dis_opt.load_state_dict(cp['dis_opt'])
         # gen_scheduler.load_state_dict(cp['gen_scheduler'])
         # dis_scheduler.load_state_dict(cp['dis_scheduler'])
-                               
+
+    encoder.to(device)
+    decoder.to(device)
+    discriminator.to(device)
+    
     for epoch in range(1):
         e_g_loss = []
         e_d_loss = []
@@ -81,6 +85,8 @@ def train(save_path, checkpoint, data_root):
         pbar = tqdm(len(data_loader))
         for i, batch in enumerate(data_loader):
             x, sem = batch
+            x.to(device)
+            sem.to(device)
             sem = sem * 255.0
             sem = sem.long()
             s = split_class(x, sem, n_classes)
