@@ -38,14 +38,15 @@ def update_lr(epoch):
 @click.option('--save_path', default='checkpoint/test', type=Path)
 @click.option('--checkpoint', default='checkpoint/test/latest.pth', type=Path)
 @click.option('--data_root', default='~/data/cityscapes/', type=Path)
-def train(save_path, checkpoint, data_root):
+@click.option('--batch_size', default=8, type=int)
+def train(save_path, checkpoint, data_root, batch_size):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     transform = transforms.Compose([transforms.Resize((128, 128)),
                                     transforms.ToTensor()])
     target_transform = transforms.Compose([transforms.Resize((128, 128)),
                                            ToTensor()])
     dataset = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=8, num_workers=1)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=1)
 
     os.makedirs(save_path, exist_ok=True)
 
