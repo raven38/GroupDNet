@@ -65,7 +65,7 @@ def train(save_path, checkpoint, data_root):
     if os.path.exists(checkpoint):
         cp = torch.load(checkpoint)
         for param in params:
-            eval('param').load_state_dict(cp[param])
+            eval(param).load_state_dict(cp[param])
         # encoder.load_state_dict(cp['encoder'])
         # decoder.load_state_dict(cp['decoder'])
         # discriminator.load_state_dict(cp['discriminator'])
@@ -74,20 +74,26 @@ def train(save_path, checkpoint, data_root):
         # gen_scheduler.load_state_dict(cp['gen_scheduler'])
         # dis_scheduler.load_state_dict(cp['dis_scheduler'])
 
-    encoder.to(device)
-    decoder.to(device)
-    discriminator.to(device)
-    vgg.to(device)
-    
-    for epoch in range(1):
+    def to_device_optimizer(opt):
+        for state in opt.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+    to_device_optimizer(gen_opt)
+    to_device_optimizer(dis_opt)    
+
+    encoder = encoder.to(device)
+    decoder = decoder.to(device)
+    discriminator = discriminator.to(device)
+    vgg = vgg.to(device)
+    print(len(data_loader))    
+    for epoch in range(200):
         e_g_loss = []
         e_d_loss = []
-        print(len(data_loader))
-        pbar = tqdm(len(data_loader))
-        for i, batch in enumerate(data_loader):
+        for i, batch in tqdm(enumerate(data_loader)):
             x, sem = batch
-            x.to(device)
-            sem.to(device)
+            x = x.to(device)
+            sem = sem.to(device)
             sem = sem * 255.0
             sem = sem.long()
             s = split_class(x, sem, n_classes)
@@ -96,9 +102,9 @@ def train(save_path, checkpoint, data_root):
             sem = torch.zeros(x.size()[0], n_classes, sem_target.size()[2], sem_target.size()[3], device=x.device)
             sem.scatter_(1, sem_target, 1)
             s = s.detach()
-            s.to(device)
+            s = s.to(device)
             mu, sigma = encoder(s)
-            z = mu + torch.exp(0.5 * sigma) * torch.rand(mu.size())
+            z = mu + torch.exp(0.5 * sigma) * torch.rand(mu.size(), device=mu.device)
             gen = decoder(z, sem)
             d_fake = discriminator(gen, sem)
             d_real = discriminator(x, sem)
@@ -129,16 +135,19 @@ def train(save_path, checkpoint, data_root):
 
             e_g_loss.append(loss.item())
             e_d_loss.append(loss_dis.item())
-            #plt.imshow((gen.detach().numpy()[0]).transpose(1, 2, 0))
+            #plt.imshow((gen.detach().cpu().numpy()[0]).transpose(1, 2, 0))
             #plt.pause(.01)
             #print(i, 'g_loss', e_g_loss[-1], 'd_loss', e_d_loss[-1])
             os.makedirs(save_path / str(epoch), exist_ok=True)
             
-            Image.fromarray((gen.detach().numpy()[0].transpose(1, 2, 0) * 255.0).astype(np.uint8)).save(save_path / str(epoch) / f'{i}.png')
-            pbar.update(1)
+            Image.fromarray((gen.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255.0).astype(np.uint8)).save(save_path / str(epoch) / f'{i}.png')
         print('g_loss', np.mean(e_g_loss), 'd_loss', np.mean(e_d_loss))
+
         # save
-        torch.save(save_path / 'latest.pth', {param:eval('param').state_dict() for param in params})
+        cp = {}
+        for param in params:
+            cp[param] = eval(param).state_dict()
+        torch.save(cp, save_path / 'latest.pth')#{param:eval(param).state_dict() for param in params})
             
 if __name__ == '__main__':
     train()
