@@ -18,7 +18,7 @@ from PIL import Image
 from tqdm import tqdm
 
 def split_class(x, sem, nc):
-    return torch.cat([(sem==i)*x for i in range(nc)], dim = 1)
+    return torch.cat([(sem==i).float()*x for i in range(nc)], dim = 1)
 
 
 class ToTensor(object):
@@ -45,7 +45,7 @@ def train(save_path, checkpoint, data_root):
     target_transform = transforms.Compose([transforms.Resize((128, 128)),
                                            ToTensor()])
     dataset = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
-    data_loader = torch.utils.data.DataLoader(dataset, num_workers=1)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=8, num_workers=1)
 
     os.makedirs(save_path, exist_ok=True)
 
@@ -55,6 +55,11 @@ def train(save_path, checkpoint, data_root):
     decoder = Decoder(8*35, n_channels, n_classes, C=280, Gs=[35, 35, 20, 14, 10, 4, 1])
     discriminator = Discriminator(n_classes + n_channels)
     vgg = Vgg19().eval()
+
+    encoder = torch.nn.DataParallel(encoder)
+    decoder = torch.nn.DataParallel(decoder)
+    discriminator = torch.nn.DataParallel(discriminator)
+    vgg = torch.nn.DataParallel(vgg)
 
     gen_opt = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.0001, betas=(0, 0.9))
     dis_opt = optim.Adam(discriminator.parameters(), lr=0.0004, betas=(0, 0.9))
@@ -115,11 +120,16 @@ def train(save_path, checkpoint, data_root):
 
             f_fake = vgg(gen)
             f_real = vgg(x)
-            loss_p = 1.0 / 32 * l1loss(f_fake.relu1_2, f_real.relu1_2) + \
-                1.0 / 16 * l1loss(f_fake.relu2_2, f_real.relu2_2) + \
-                1.0 / 8 * l1loss(f_fake.relu3_3, f_real.relu3_3) + \
-                1.0 / 4 * l1loss(f_fake.relu4_3, f_real.relu4_3) + \
-                l1loss(f_fake.relu5_3, f_real.relu5_3)
+            # loss_p = 1.0 / 32 * l1loss(f_fake.relu1_2, f_real.relu1_2) + \
+            #     1.0 / 16 * l1loss(f_fake.relu2_2, f_real.relu2_2) + \
+            #     1.0 / 8 * l1loss(f_fake.relu3_3, f_real.relu3_3) + \
+            #     1.0 / 4 * l1loss(f_fake.relu4_3, f_real.relu4_3) + \
+            #     l1loss(f_fake.relu5_3, f_real.relu5_3)
+            loss_p = 1.0 / 32 * l1loss(f_fake[0], f_real[0]) + \
+                1.0 / 16 * l1loss(f_fake[1], f_real[1]) + \
+                1.0 / 8 * l1loss(f_fake[2], f_real[2]) + \
+                1.0 / 4 * l1loss(f_fake[3], f_real[3]) + \
+                l1loss(f_fake[4], f_real[4])            
             loss_kl = -0.5 * torch.sum(1 + sigma - mu*mu - torch.exp(sigma))
             loss = loss_gen + 10.0 * loss_fm + 10.0 * loss_p + 0.05 * loss_kl
             loss.backward(retain_graph=True)
