@@ -9,7 +9,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         # refer Figure 8
 
-        conv_base = lambda x, y, g: nn.Sequential(nn.Conv2d(x, y, kernel_size=3, stride=2, padding=1, groups=g), nn.InstanceNorm2d(y), nn.LeakyReLU())
+        conv_base = lambda x, y, g: nn.Sequential(nn.Conv2d(x, y, kernel_size=3, stride=2, padding=1, groups=g), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
         self.net = nn.Sequential(
             conv_base(in_channels, 1*C*G, G),
             conv_base(1*C*G, 2*C*G, G),
@@ -59,7 +59,7 @@ class Decoder(nn.Module):
         x = self.layer5(x, m)
         x = self.layer6(x, m)
         x = self.layer7(x, m)
-        x = self.layer8(F.leaky_relu(x))
+        x = self.layer8(F.leaky_relu(x, 0.2))
         return torch.tanh(x)
 
 
@@ -67,7 +67,7 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels):
         super(Discriminator, self).__init__()
         # refer Figure 7
-        conv_base = lambda x, y, z: nn.Sequential(nn.Conv2d(x, y, kernel_size=4, padding=2, stride=z), nn.InstanceNorm2d(y), nn.LeakyReLU())
+        conv_base = lambda x, y, z: nn.Sequential(nn.Conv2d(x, y, kernel_size=4, padding=2, stride=z), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
         self.net_a = nn.Sequential(
             conv_base(in_channels, 64, 2),
             conv_base(64, 128, 2),

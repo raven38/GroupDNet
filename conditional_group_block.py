@@ -14,8 +14,8 @@ class CGB(nn.Module):
         self.gconv_mid = nn.Conv2d(f_channels, out_channels, kernel_size=3, padding=1, groups=G)
 
     def forward(self, f, m):
-        x = self.gconv1(F.leaky_relu(self.norm1(f, m)))
-        x = self.gconv2(F.leaky_relu(self.norm2(x, m)))
+        x = self.gconv1(F.leaky_relu(self.norm1(f, m), 0.2))
+        x = self.gconv2(F.leaky_relu(self.norm2(x, m), 0.2))
         r = self.gconv_mid(self.norm_mid(f, m))
         return x + r
 
