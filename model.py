@@ -59,7 +59,7 @@ class Decoder(nn.Module):
         x = self.layer5(x, m)
         x = self.layer6(x, m)
         x = self.layer7(x, m)
-        x = self.layer8(x)
+        x = self.layer8(F.leaky_relu(x))
         return torch.tanh(x)
 
 
