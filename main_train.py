@@ -12,13 +12,21 @@ from torchvision import transforms
 
 from model import Encoder, Decoder, Discriminator
 from vgg import Vgg19
+from deepfashion import Deepfashion
 
 #import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
 
 def split_class(x, sem, nc):
-    return torch.cat([(sem==i).float()*x for i in range(nc)], dim = 1)
+    return torch.cat([(sem==i).float()*x for i in range(nc)], dim=1)
+
+def extract_class(x, sem, c):
+    return np.where(sem == c, x, 0)
+
+
+def extract_other_class(x, sem, c):
+    return np.where(sem != c, x, 0)
 
 
 class ToTensor(object):
@@ -27,11 +35,18 @@ class ToTensor(object):
         target = torch.unsqueeze(target, dim=0)
         return target
 
-def update_lr(epoch):
+def update_lr_default(epoch):
     if epoch < 100:
         return 1.0
     elif 100 <= epoch < 200:
         return (200 - epoch)/100
+    return 0
+
+def update_lr_deepfashion(epoch):
+    if epoch < 60:
+        return 1.0
+    elif 60 <= epoch < 100:
+        return (100 - epoch)/40
     return 0
 
 @click.command()
@@ -39,21 +54,39 @@ def update_lr(epoch):
 @click.option('--checkpoint', default='checkpoint/test/latest.pth', type=Path)
 @click.option('--data_root', default='~/data/cityscapes/', type=Path)
 @click.option('--batch_size', default=8, type=int)
-def train(save_path, checkpoint, data_root, batch_size):
+@click.option('--dataset', default='cityscapes', type=click.Choice(['cityscapes', 'deepfashion']))
+def train(save_path, checkpoint, data_root, batch_size, dataset):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     transform = transforms.Compose([transforms.Resize((128, 128)),
                                     transforms.ToTensor()])
     target_transform = transforms.Compose([transforms.Resize((128, 128)),
                                            ToTensor()])
-    dataset = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=1)
+    if dataset == 'cityscapes':
+        train_data = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
+        eG = 35
+        dG = [35, 35, 20, 14, 10, 4, 1]
+        eC = 8
+        dC = 280
+        n_classes = len(Cityscapes.classes)
+        update_lr = update_lr_default
+        epoch = 200
+    else:
+        train_data = Deepfashion(str(data_root), split='train', transform=transform, target_transform=transform)
+        n_classes = len(Deepfashion.eclasses)
+        eG = 8
+        eC = 64
+        dG = [8, 8, 4, 4, 2, 2, 1]
+        dC = 160
+        update_lr = update_lr_deepfashion
+        epoch = 100
+    data_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, num_workers=1)
 
     os.makedirs(save_path, exist_ok=True)
+    
 
-    n_classes = len(Cityscapes.classes)
     n_channels = 3
-    encoder = Encoder(n_classes*n_channels, C=8, G=35)
-    decoder = Decoder(8*35, n_channels, n_classes, C=280, Gs=[35, 35, 20, 14, 10, 4, 1])
+    encoder = Encoder(n_classes*n_channels, C=eC, G=eG)
+    decoder = Decoder(8*eG, n_channels, n_classes, C=dC, Gs=dG)
     discriminator = Discriminator(n_classes + n_channels)
     vgg = Vgg19().eval()
 
@@ -70,6 +103,7 @@ def train(save_path, checkpoint, data_root, batch_size):
 
     if os.path.exists(checkpoint):
         cp = torch.load(checkpoint)
+        print(f'Load checkpoint: {checkpoint}')
         for param in params:
             eval(param).load_state_dict(cp[param])
         # encoder.load_state_dict(cp['encoder'])
@@ -86,14 +120,14 @@ def train(save_path, checkpoint, data_root, batch_size):
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(device)
     to_device_optimizer(gen_opt)
-    to_device_optimizer(dis_opt)    
+    to_device_optimizer(dis_opt)
 
     encoder = encoder.to(device)
     decoder = decoder.to(device)
     discriminator = discriminator.to(device)
     vgg = vgg.to(device)
     print(len(data_loader))    
-    for epoch in range(200):
+    for epoch in range(epoch):
         e_g_loss = []
         e_d_loss = []
         for i, batch in tqdm(enumerate(data_loader)):
@@ -139,8 +173,8 @@ def train(save_path, checkpoint, data_root, batch_size):
             dis_opt.zero_grad()
             loss_dis = torch.mean(-torch.mean(torch.min(d_real[0][-1] - 1, torch.zeros_like(d_real[0][-1]))) +
                                   -torch.mean(torch.min(-d_fake[0][-1] - 1, torch.zeros_like(d_fake[0][-1])))) + \
-                                  torch.mean(-torch.mean(torch.min(d_real[1][-1] - 1, torch.zeros_like(d_real[1][-1]))) + 
-                                  -torch.mean(torch.min(-d_fake[1][-1] - 1, torch.zeros_like(d_fake[1][-1])))) 
+                                  torch.mean(-torch.mean(torch.min(d_real[1][-1] - 1, torch.zeros_like(d_real[1][-1]))) +
+                                  -torch.mean(torch.min(-d_fake[1][-1] - 1, torch.zeros_like(d_fake[1][-1]))))
             loss_dis.backward()
             dis_opt.step()
 
@@ -150,7 +184,7 @@ def train(save_path, checkpoint, data_root, batch_size):
             #plt.pause(.01)
             #print(i, 'g_loss', e_g_loss[-1], 'd_loss', e_d_loss[-1])
             os.makedirs(save_path / str(epoch), exist_ok=True)
-            
+
             Image.fromarray((gen.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255.0).astype(np.uint8)).save(save_path / str(epoch) / f'{i}.png')
         print('g_loss', np.mean(e_g_loss), 'd_loss', np.mean(e_d_loss))
 
