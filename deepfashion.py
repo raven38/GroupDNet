@@ -104,11 +104,11 @@ class Deepfashion(VisionDataset):
         self.images = []
         self.targets = []
 
-        valid_modes = ("train", "test", "val")
+        valid_splits = ("train", "test", "val")
         msg = ("Unknown value '{}' for argument split if mode is '{}'. "
                "Valid values are {{{}}}.")
-        msg = msg.format(split, mode, iterable_to_str(valid_modes))
-        verify_str_arg(split, "split", valid_modes, msg)
+        msg = msg.format(split, split, iterable_to_str(valid_splits))
+        verify_str_arg(split, "split", valid_splits, msg)
 
         if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir):
 
@@ -122,7 +122,7 @@ class Deepfashion(VisionDataset):
                 raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                    ' specified "split" and "mode" are inside the "root" directory')
 
-        data_list = pd.read_csv(os.path.join(self.root, 'list_eval_partition.txt'), sep='\t', skiprows=1)
+        data_list = pd.read_csv(os.path.join(self.root, 'list_eval_partition.txt'), sep='\s+', skiprows=1)
         data_list = data_list[data_list['evaluation_status'] == self.split]
         for image_path in data_list['image_name']:
             target_path = 'lbl/' + '/'.join(image_path.split('/')[1:])
