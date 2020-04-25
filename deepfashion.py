@@ -7,7 +7,7 @@ import torch
 from torchvision.datasets.utils import extract_archive, verify_str_arg, iterable_to_str
 from torchvision.datasets import VisionDataset
 from PIL import Image
-import pandas ad pd
+import pandas as pd
 
 
 class Deepfashion(VisionDataset):
