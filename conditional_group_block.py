@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class CGB(nn.Module):
-    def __init__(self, f_channels, out_channels, l_channels, hidden_channel=280, G=8):
+    def __init__(self, f_channels, out_channels, l_channels, hidden_channel=128, G=8):
         super(CGB, self).__init__()
         self.norm1 = CGNorm(f_channels, l_channels, hidden_channel, G)
         self.gconv1 = nn.Conv2d(f_channels, f_channels, kernel_size=3, padding=1, groups=G)
@@ -24,7 +24,7 @@ class CGNorm(nn.Module):
         super(CGNorm, self).__init__()
         #self.norm = nn.SyncBatchNorm(f_channels, affine=True)
         self.norm = nn.InstanceNorm2d(f_channels, affine=True)
-        self.gconv1 = nn.Conv2d(l_channels, hidden_channels, kernel_size=3, padding=1, groups=1) # G?
+        self.gconv1 = nn.Conv2d(l_channels, hidden_channels, kernel_size=3, padding=1, groups=G) # G?
         self.gconv2_1 = nn.Conv2d(hidden_channels, f_channels, kernel_size=3, padding=1, groups=G)
         self.gconv2_2 = nn.Conv2d(hidden_channels, f_channels, kernel_size=3, padding=1, groups=G)
 

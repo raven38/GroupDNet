@@ -134,7 +134,7 @@ def train(save_path, checkpoint, data_root, batch_size, dataset):
             x, sem = batch
             x = x.to(device)
             sem = sem.to(device)
-            sem = sem * 255.0
+            #sem = sem * 255.0
             sem = sem.long()
             s = split_class(x, sem, n_classes)
             sem_target = sem.clone()
