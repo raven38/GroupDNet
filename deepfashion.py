@@ -125,7 +125,8 @@ class Deepfashion(VisionDataset):
         data_list = pd.read_csv(os.path.join(self.root, 'list_eval_partition.txt'), sep='\s+', skiprows=1)
         data_list = data_list[data_list['evaluation_status'] == self.split]
         for image_path in data_list['image_name']:
-            target_path = 'lbl/' + '/'.join(image_path.split('/')[1:])
+            target_path = self.root + '/lbl/' + '/'.join(image_path.split('/')[1:])[:-4] + '.png'
+            image_path = self.root + '/' + image_path
             self.images.append(image_path)
             self.targets.append(target_path)
 
@@ -139,13 +140,13 @@ class Deepfashion(VisionDataset):
         """
 
         image = Image.open(self.images[index]).convert('RGB')
-        target = Image.open(self.targets[index][i])
+        target = Image.open(self.targets[index])
         if self.transforms is not None:
             image, target = self.transforms(image, target)
 
-        target_ = torch.zeros((len(eclasses), target.size()[1], target.size()[2]), device=target.device)
-        for cls in classes:
-            target_[cls.category_id] = target_[cas.category_id] | target[cls.id]
+        target_ = torch.zeros_like(target, device=target.device, dtype=torch.int64)
+        for cls in self.classes:
+            target_[target == cls.id] = cls.category_id
         return image, target
 
     def __len__(self):
