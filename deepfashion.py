@@ -144,10 +144,10 @@ class Deepfashion(VisionDataset):
         if self.transforms is not None:
             image, target = self.transforms(image, target)
 
-        target_ = torch.zeros_like(target, device=target.device, dtype=torch.int64)
+        target_ = torch.zeros_like(target, device=target.device).long()
         for cls in self.classes:
             target_[target == cls.id] = cls.category_id
-        return image, target
+        return image, target_
 
     def __len__(self):
         return len(self.images)
