@@ -146,6 +146,7 @@ class Deepfashion(VisionDataset):
 
         target_ = torch.zeros_like(target, device=target.device).long()
         for cls in self.classes:
+            #print((target == cls.id).sum(), cls.id)
             target_[target == cls.id] = cls.category_id
         return image, target_
 

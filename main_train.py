@@ -57,9 +57,9 @@ def update_lr_deepfashion(epoch):
 @click.option('--dataset', default='cityscapes', type=click.Choice(['cityscapes', 'deepfashion']))
 def train(save_path, checkpoint, data_root, batch_size, dataset):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    transform = transforms.Compose([transforms.Resize((128, 128)),
+    transform = transforms.Compose([transforms.Resize((256, 256)),
                                     transforms.ToTensor()])
-    target_transform = transforms.Compose([transforms.Resize((128, 128)),
+    target_transform = transforms.Compose([transforms.Resize((256, 256)),
                                            ToTensor()])
     if dataset == 'cityscapes':
         train_data = Cityscapes(str(data_root), split='train', mode='fine', target_type='semantic', transform=transform, target_transform=transform)
@@ -71,10 +71,10 @@ def train(save_path, checkpoint, data_root, batch_size, dataset):
         update_lr = update_lr_default
         epoch = 200
     else:
-        train_data = Deepfashion(str(data_root), split='train', transform=transform, target_transform=transform)
+        train_data = Deepfashion(str(data_root), split='train', transform=transform, target_transform=target_transform)
         n_classes = len(Deepfashion.eclasses)
         eG = 8
-        eC = 64
+        eC = 32
         dG = [8, 8, 4, 4, 2, 2, 1]
         dC = 160
         update_lr = update_lr_deepfashion
@@ -136,6 +136,7 @@ def train(save_path, checkpoint, data_root, batch_size, dataset):
             sem = sem.to(device)
             #sem = sem * 255.0
             sem = sem.long()
+            #print(sem[:, :, ::16, ::16])
             s = split_class(x, sem, n_classes)
             sem_target = sem.clone()
             del sem

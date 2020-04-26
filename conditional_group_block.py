@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.utils.spectral_norm as spectral_norm
 
 class CGB(nn.Module):
     def __init__(self, f_channels, out_channels, l_channels, hidden_channel=128, G=8):
@@ -23,7 +24,7 @@ class CGNorm(nn.Module):
     def __init__(self, f_channels, l_channels, hidden_channels, G=8):
         super(CGNorm, self).__init__()
         #self.norm = nn.SyncBatchNorm(f_channels, affine=True)
-        self.norm = nn.InstanceNorm2d(f_channels, affine=True)
+        self.norm = nn.InstanceNorm2d(f_channels, affine=False)
         self.gconv1 = nn.Conv2d(l_channels, hidden_channels, kernel_size=3, padding=1, groups=G) # G?
         self.gconv2_1 = nn.Conv2d(hidden_channels, f_channels, kernel_size=3, padding=1, groups=G)
         self.gconv2_2 = nn.Conv2d(hidden_channels, f_channels, kernel_size=3, padding=1, groups=G)

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.utils.spectral_norm as spectral_norm
 
 from conditional_group_block import CGB
 
@@ -9,7 +10,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         # refer Figure 8
 
-        conv_base = lambda x, y, g: nn.Sequential(nn.Conv2d(x, y, kernel_size=3, stride=2, padding=1, groups=g), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
+        conv_base = lambda x, y, g: nn.Sequential(spectral_norm(nn.Conv2d(x, y, kernel_size=3, stride=2, padding=1, groups=g)), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
         self.net = nn.Sequential(
             conv_base(in_channels, 1*C*G, G),
             conv_base(1*C*G, 2*C*G, G),
@@ -67,9 +68,9 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels):
         super(Discriminator, self).__init__()
         # refer Figure 7
-        conv_base = lambda x, y, z: nn.Sequential(nn.Conv2d(x, y, kernel_size=4, padding=2, stride=z), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
+        conv_base = lambda x, y, z: nn.Sequential(spectral_norm(nn.Conv2d(x, y, kernel_size=4, padding=2, stride=z)), nn.InstanceNorm2d(y), nn.LeakyReLU(0.2))
         self.net_a = nn.Sequential(
-            conv_base(in_channels, 64, 2),
+            nn.Conv2d(in_channels, 64, 4, 2, 2), nn.LeakyReLU(0.2),
             conv_base(64, 128, 2),
             conv_base(128, 256, 2),
             conv_base(256, 512, 1),
@@ -77,7 +78,7 @@ class Discriminator(nn.Module):
             )
         self.net_b = nn.Sequential(
             nn.AvgPool2d(2),
-            conv_base(in_channels, 64, 2),
+            nn.Conv2d(in_channels, 64, 4, 2, 2), nn.LeakyReLU(0.2),
             conv_base(64, 128, 2),
             conv_base(128, 256, 2),
             conv_base(256, 512, 1),
