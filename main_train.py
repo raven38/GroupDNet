@@ -130,6 +130,9 @@ def train(save_path, checkpoint, data_root, batch_size, dataset):
     for epoch in range(epoch):
         e_g_loss = []
         e_d_loss = []
+        e_loss_p = []
+        e_loss_kl = []
+        e_loss_fm = []
         for i, batch in tqdm(enumerate(data_loader)):
             x, sem = batch
             x = x.to(device)
@@ -181,13 +184,17 @@ def train(save_path, checkpoint, data_root, batch_size, dataset):
 
             e_g_loss.append(loss.item())
             e_d_loss.append(loss_dis.item())
+            e_loss_p.append(loss_p.item())
+            e_loss_kl.append(loss_kl.item())
+            e_loss_fm.append(loss_fm.item())
             #plt.imshow((gen.detach().cpu().numpy()[0]).transpose(1, 2, 0))
             #plt.pause(.01)
             #print(i, 'g_loss', e_g_loss[-1], 'd_loss', e_d_loss[-1])
             os.makedirs(save_path / str(epoch), exist_ok=True)
 
             Image.fromarray((gen.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255.0).astype(np.uint8)).save(save_path / str(epoch) / f'{i}.png')
-        print('g_loss', np.mean(e_g_loss), 'd_loss', np.mean(e_d_loss))
+        print('g_loss', np.mean(e_g_loss), 'p_loss', np.mean(e_loss_p),
+              'kl_loss', np.mean(e_loss_kl), 'fm_loss', np.mean(e_loss_fm), 'd_loss', np.mean(e_d_loss))
 
         # save
         cp = {}
